@@ -53,7 +53,7 @@ jobs:
       - name: Compare metrics
         id: compare
         run: |
-          python compare_metrics.py
+          python src/compare_metrics.py
 
       # 9️⃣ Build Docker image
       - name: Build Docker image
