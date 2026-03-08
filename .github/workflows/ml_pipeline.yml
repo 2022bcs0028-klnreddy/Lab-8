@@ -10,66 +10,65 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 1️⃣ Checkout repo
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    # 1️⃣ Checkout repo
-    - name: Checkout repository
-      uses: actions/checkout@v3
+      # 2️⃣ Setup Python
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.10
 
-    # 2️⃣ Setup Python
-    - name: Setup Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: 3.10
+      # 3️⃣ Install dependencies including DVC
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install "dvc[s3]"
 
-    # 3️⃣ Install dependencies including DVC
-    - name: Install dependencies
-      run: |
-        pip install -r requirements.txt
-        pip install "dvc[s3]"
+      # 4️⃣ Configure AWS credentials
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-south-1
 
-    # 4️⃣ Configure AWS credentials
-    - name: Configure AWS
-      uses: aws-actions/configure-aws-credentials@v2
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ap-south-1
+      # 5️⃣ Pull dataset using DVC
+      - name: Pull data from DVC remote
+        run: dvc pull
 
-    # 5️⃣ Pull dataset using DVC
-    - name: Pull data from DVC remote
-      run: dvc pull
+      # 6️⃣ Train model
+      - name: Train model
+        run: python train.py
 
-    # 6️⃣ Train model
-    - name: Train model
-      run: python train.py
+      # 7️⃣ Upload metrics as artifact
+      - name: Upload metrics
+        uses: actions/upload-artifact@v4
+        with:
+          name: metrics
+          path: metrics.json
 
-    # 7️⃣ Upload metrics as artifact
-    - name: Upload metrics
-      uses: actions/upload-artifact@v3
-      with:
-        name: metrics
-        path: metrics.json
+      # 8️⃣ Compare metrics
+      - name: Compare metrics
+        id: compare
+        run: |
+          python compare_metrics.py
 
-    # 8️⃣ Compare metrics
-    - name: Compare metrics
-      id: compare
-      run: |
-        python compare_metrics.py
+      # 9️⃣ Build Docker image
+      - name: Build Docker image
+        if: steps.compare.outputs.improved == 'true'
+        run: |
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/ml-model:latest .
 
-    # 9️⃣ Build Docker image
-    - name: Build Docker image
-      if: steps.compare.outputs.improved == 'true'
-      run: |
-        docker build -t ${{ secrets.DOCKER_USERNAME }}/ml-model:latest .
+      # 🔟 Login to DockerHub
+      - name: Docker login
+        if: steps.compare.outputs.improved == 'true'
+        run: |
+          echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
-    # 🔟 Login to DockerHub
-    - name: Docker login
-      if: steps.compare.outputs.improved == 'true'
-      run: |
-        echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
-
-    # 1️⃣1️⃣ Push Docker image
-    - name: Push Docker image
-      if: steps.compare.outputs.improved == 'true'
-      run: |
-        docker push ${{ secrets.DOCKER_USERNAME }}/ml-model:latest
+      # 1️⃣1️⃣ Push Docker image
+      - name: Push Docker image
+        if: steps.compare.outputs.improved == 'true'
+        run: |
+          docker push ${{ secrets.DOCKER_USERNAME }}/ml-model:latest
