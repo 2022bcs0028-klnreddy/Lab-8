@@ -9,7 +9,8 @@ env/
 
 .ipynb_checkpoints/
 
-data/
+data/*
+!data/*.dvc
 *.csv
 *.zip
 *.tar.gz
