@@ -40,7 +40,7 @@ jobs:
 
       # 6️⃣ Train model
       - name: Train model
-        run: python train.py
+        run: python src/train.py
 
       # 7️⃣ Upload metrics as artifact
       - name: Upload metrics
